@@ -1,11 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RFID Prober GUI</title>
-    <link rel="stylesheet" href="styles.css?v=20260912_view_mode_v9">
+    <link rel="stylesheet" href="styles.css?v=20261001_clear_btn_v1">
 </head>
 
 <body>
@@ -128,28 +127,40 @@
             </div>
             <div class="popover-options">
                 <button type="button" class="view-opt-btn active" data-view="split" onclick="setHomeViewMode('split')">
-                    <span class="view-opt-icon">◫</span>
+                    <span class="view-opt-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="3" x2="12" y2="21"/></svg>
+                    </span>
                     <div class="view-opt-text">
                         <span class="view-opt-title">มุมมองแบ่งครึ่ง (Split 50/50)</span>
                         <span class="view-opt-desc">แสดงทั้ง RFID และ PMI คู่กัน</span>
                     </div>
-                    <span class="view-opt-check">✓</span>
+                    <span class="view-opt-check">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    </span>
                 </button>
                 <button type="button" class="view-opt-btn" data-view="rfid" onclick="setHomeViewMode('rfid')">
-                    <span class="view-opt-icon">◧</span>
+                    <span class="view-opt-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><rect x="4.5" y="4.5" width="7" height="15" rx="1" fill="currentColor" fill-opacity="0.35"/><line x1="12" y1="3" x2="12" y2="21" stroke-dasharray="2 2"/></svg>
+                    </span>
                     <div class="view-opt-text">
                         <span class="view-opt-title">เฉพาะ RFID (Full Screen)</span>
                         <span class="view-opt-desc">ขยายข้อมูล Reader และ WT-Lot Info</span>
                     </div>
-                    <span class="view-opt-check">✓</span>
+                    <span class="view-opt-check">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    </span>
                 </button>
                 <button type="button" class="view-opt-btn" data-view="pmi" onclick="setHomeViewMode('pmi')">
-                    <span class="view-opt-icon">◨</span>
+                    <span class="view-opt-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><rect x="12.5" y="4.5" width="7" height="15" rx="1" fill="currentColor" fill-opacity="0.35"/><line x1="12" y1="3" x2="12" y2="21" stroke-dasharray="2 2"/></svg>
+                    </span>
                     <div class="view-opt-text">
                         <span class="view-opt-title">เฉพาะ PMI (Full Screen)</span>
                         <span class="view-opt-desc">ขยายภาพกล้อง RAW & PROCESSED เต็มจอ</span>
                     </div>
-                    <span class="view-opt-check">✓</span>
+                    <span class="view-opt-check">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    </span>
                 </button>
             </div>
         </div>
@@ -327,12 +338,16 @@
                                     <div class="pmi-outer-frame">
                                         <div class="pmi-inner-frame">
                                             <!-- Camera image element for raw viewport -->
-                                            <img src="/pmi_inspection.png" class="pmi-camera-image" id="pmi-raw-img"
+                                            <img src="" class="pmi-camera-image" id="pmi-raw-img"
                                                 style="display: none;">
 
                                             <!-- Under-construction fallback indicator -->
                                             <div class="pmi-under-construction" id="pmi-raw-construct">
-                                                <div class="construction-icon">🛠️</div>
+                                                <div class="construction-icon">
+                                                    <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                        <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+                                                    </svg>
+                                                </div>
                                                 <div class="construction-text">UNDER<br>CONSTRUCTION</div>
                                             </div>
                                         </div>
@@ -345,13 +360,17 @@
                                     <div class="pmi-outer-frame">
                                         <div class="pmi-inner-frame">
                                             <!-- Image element for processed viewport -->
-                                            <img src="/pmi_inspection.png" class="pmi-camera-image"
+                                            <img src="" class="pmi-camera-image"
                                                 id="pmi-processed-img" style="display: none;">
                                             <div class="pmi-highlight-overlay"></div>
 
                                             <!-- Under-construction fallback indicator -->
                                             <div class="pmi-under-construction" id="pmi-processed-construct">
-                                                <div class="construction-icon">🛠️</div>
+                                                <div class="construction-icon">
+                                                    <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                        <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+                                                    </svg>
+                                                </div>
                                                 <div class="construction-text">UNDER<br>CONSTRUCTION</div>
                                             </div>
                                         </div>
@@ -360,15 +379,16 @@
                             </div>
 
                             <!-- Hidden Image Filename store for JS Parser -->
-                            <span id="pmi-filename-display"
-                                style="display: none;">20260505114649_TR7A9073W25C5_X37Y2_S10_P15_NM_29D5B0FBAA-PC611_300.bmp</span>
+                            <span id="pmi-filename-display" style="display: none;"></span>
 
-                            <!-- Fail Review Navigation (Shows when batch finishes with defects) -->
-                            <div class="pmi-fail-nav" id="pmi-fail-nav" style="display: none;">
-                                <button type="button" class="pmi-nav-btn" id="pmi-prev-btn"
-                                    title="Previous Defect (←)">◀</button>
-                                <button type="button" class="pmi-nav-btn" id="pmi-next-btn"
-                                    title="Next Defect (→)">▶</button>
+                            <!-- Fail Review Navigation (Always in layout, disabled on WAITING/PASSED) -->
+                            <div class="pmi-fail-nav" id="pmi-fail-nav">
+                                <button type="button" class="pmi-nav-btn" id="pmi-prev-btn" title="Previous Defect (←)"
+                                    disabled>◀</button>
+                                <button type="button" class="pmi-reset-btn" id="pmi-reset-btn"
+                                    title="Acknowledge defects & Reset status to WAITING" disabled>RESET</button>
+                                <button type="button" class="pmi-nav-btn" id="pmi-next-btn" title="Next Defect (→)"
+                                    disabled>▶</button>
                             </div>
 
                             <!-- 4. PMI Parsed Data Fields Grid:
@@ -376,27 +396,27 @@
                             <div class="pmi-parsed-grid" id="pmi-parsed-grid">
                                 <div class="pmi-data-card">
                                     <span class="pmi-card-label">Date & Time</span>
-                                    <span class="pmi-card-value" id="pmi-field-datetime">2026-05-05 11:46:49</span>
+                                    <span class="pmi-card-value" id="pmi-field-datetime">-</span>
                                 </div>
                                 <div class="pmi-data-card">
                                     <span class="pmi-card-label">XY Coordinate</span>
-                                    <span class="pmi-card-value" id="pmi-field-xy">X37Y2</span>
+                                    <span class="pmi-card-value" id="pmi-field-xy">-</span>
                                 </div>
                                 <div class="pmi-data-card">
                                     <span class="pmi-card-label">Batch# - Wafer#</span>
-                                    <span class="pmi-card-value" id="pmi-field-batch-wafer">SUC720-15F0</span>
+                                    <span class="pmi-card-value" id="pmi-field-batch-wafer">-</span>
                                 </div>
                                 <div class="pmi-data-card">
                                     <span class="pmi-card-label">Site# / Pad#</span>
-                                    <span class="pmi-card-value" id="pmi-field-sitepad">S10 / P15</span>
+                                    <span class="pmi-card-value" id="pmi-field-sitepad">-</span>
                                 </div>
                                 <div class="pmi-data-card">
                                     <span class="pmi-card-label">Product Setup File</span>
-                                    <span class="pmi-card-value" id="pmi-field-setup">29D5B0FBAA-PC611</span>
+                                    <span class="pmi-card-value" id="pmi-field-setup">-</span>
                                 </div>
                                 <div class="pmi-data-card">
                                     <span class="pmi-card-label">Temp</span>
-                                    <span class="pmi-card-value" id="pmi-field-temp">300</span>
+                                    <span class="pmi-card-value" id="pmi-field-temp">-</span>
                                 </div>
                             </div>
                         </div>
@@ -563,10 +583,11 @@
 
                             <div class="search-group">
                                 <label for="search-cass-result">ผลลัพธ์ Cassette</label>
-                                <select id="search-cass-result" class="search-input search-select" onchange="searchLogs()">
+                                <select id="search-cass-result" class="search-input search-select"
+                                    onchange="searchLogs()">
                                     <option value="all">ทั้งหมด (All)</option>
-                                    <option value="match">✓ ถูกต้อง (Match)</option>
-                                    <option value="not_found">🔍 ไม่พบข้อมูล (Not Found)</option>
+                                    <option value="match">[OK] ถูกต้อง (Match)</option>
+                                    <option value="not_found">[?] ไม่พบข้อมูล (Not Found)</option>
                                 </select>
                             </div>
 
@@ -574,9 +595,9 @@
                                 <label for="search-result">ผลลัพธ์ Probe Card</label>
                                 <select id="search-result" class="search-input search-select" onchange="searchLogs()">
                                     <option value="all">ทั้งหมด (All)</option>
-                                    <option value="match">✓ จับคู่ถูกต้อง (Match)</option>
-                                    <option value="mismatch">❌ จับคู่ผิด (Mismatch)</option>
-                                    <option value="not_found">🔍 ไม่พบข้อมูล (Not Found)</option>
+                                    <option value="match">[OK] จับคู่ถูกต้อง (Match)</option>
+                                    <option value="mismatch">[!] จับคู่ผิด (Mismatch)</option>
+                                    <option value="not_found">[?] ไม่พบข้อมูล (Not Found)</option>
                                 </select>
                             </div>
 
@@ -836,6 +857,30 @@
                                     readings, and re-scan serial COM ports.</p>
                                 <button id="btn-reset-rfid" class="btn-setting-action btn-warning"
                                     onclick="resetRFID()">Reset RFID Settings</button>
+                            </div>
+
+                            <!-- Card 5: Operation Mode Switcher -->
+                            <div class="setting-card" id="card-operation-mode" style="grid-column: span 2;">
+                                <div class="setting-card-header">
+                                    <div class="setting-card-icon icon-mode" style="background: #e0e7ff; color: #4338ca;">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+                                            stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round">
+                                            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                                            <line x1="8" y1="21" x2="16" y2="21"></line>
+                                            <line x1="12" y1="17" x2="12" y2="21"></line>
+                                        </svg>
+                                    </div>
+                                    <div style="display: flex; align-items: center; justify-content: space-between; flex-grow: 1; flex-wrap: wrap; gap: 8px;">
+                                        <h3 class="setting-card-title">Operation Mode (โหมดการทำงาน)</h3>
+                                        <span id="setting-mode-status-badge" style="font-weight: 700; padding: 3px 10px; border-radius: 9999px; font-size: 12px; background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0;">โหมดปกติ (Normal Mode)</span>
+                                    </div>
+                                </div>
+                                <p class="setting-card-desc" id="setting-mode-desc-text" style="margin-bottom: 14px;">
+                                    ระบบกำลังทำงานในโหมดปกติ: อ่านและยืนยันข้อมูลจาก Smart Store ตามขั้นตอนการผลิตจริง
+                                </p>
+                                <button id="btn-toggle-operation-mode" class="btn-setting-action" style="background-color: #4f46e5;"
+                                    onclick="toggleOperationMode()">สลับเป็น Test Mode (โหมดทดสอบ)</button>
                             </div>
                         </div>
 
@@ -1150,7 +1195,7 @@
         </div>
 
 
-        <script src="script.js?v=20260912_view_mode_v2"></script>
+        <script src="script.js?v=20261001_clear_btn_v1"></script>
 
         <div id="mismatch-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="mm-title"
             style="display:none">
@@ -1193,7 +1238,13 @@
                         onclick="document.getElementById('pm-warning').style.display='none'; hidePmWarning();">×</button>
                 </div>
                 <div class="modal-body pm-warning-body">
-                    <div class="pm-warning-icon" id="pm-warning-icon">⚠️</div>
+                    <div class="pm-warning-icon" id="pm-warning-icon">
+                        <svg viewBox="0 0 24 24" width="80" height="80" fill="none" stroke="#eab308" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                            <line x1="12" y1="9" x2="12" y2="13"/>
+                            <circle cx="12" cy="17" r="0.8" fill="#eab308"/>
+                        </svg>
+                    </div>
                     <div class="pm-warning-title" id="pm-warning-title">Touchdown Limit Exceeded</div>
                     <div class="pm-warning-text" id="pm-warning-text">
                         <p>PM is <strong>REQUIRED</strong> before starting a new lot.</p>
@@ -1245,6 +1296,10 @@
 
             container.style.transform = `scale(${scaleX}, ${scaleY})`;
             container.style.transformOrigin = 'center center';
+
+            if (typeof fitPmiCardText === 'function') {
+                fitPmiCardText();
+            }
         }
 
         window.addEventListener('resize', fitHmiToScreen);

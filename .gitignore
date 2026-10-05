@@ -1,8 +1,12 @@
 # Python Virtual Environment
 venv/
 .venv/
+.venv
 Env/
 env/
+
+# IDE & Tooling
+.codegraph/
 
 # Python Cache
 __pycache__/

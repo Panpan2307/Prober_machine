@@ -225,6 +225,8 @@ body {
    ============================================================================ */
 .main-content {
   flex: 1;
+  min-width: 0;
+  max-width: 100%;
   padding: 10px;
   /* Reduced from 20px */
   background-color: #f0f0f0;
@@ -238,6 +240,8 @@ body {
 .page-content {
   display: none;
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   height: 100%;
   min-height: 0;
 }
@@ -345,6 +349,10 @@ body {
   justify-content: space-between;
   align-items: center;
   box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Special Expanded Multi-line Layout for Comment Field */
@@ -513,6 +521,25 @@ body {
   transform: translateY(1px);
 }
 
+/* Clear button styling when Info Box is disconnected (red box) */
+#home .info-box.disconnected .info-box-footer {
+  display: flex;
+}
+
+#home .info-box.disconnected .btn-clear-status {
+  background-color: #ffffff;
+  color: #dc2626;
+  border: 1.5px solid #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+#home .info-box.disconnected .btn-clear-status:hover {
+  background-color: #fef2f2;
+  color: #b91c1c;
+  border-color: #fef2f2;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+
 #home .left-column {
   display: flex;
   flex-direction: column;
@@ -672,7 +699,7 @@ body {
   width: 100%;
   background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
   border-radius: 6px;
-  padding: 12px 16px;
+  padding: 8px 12px 10px 12px;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -681,19 +708,21 @@ body {
   flex: 1;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
   border: 1px solid #cbd5e1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .pmi-box-title {
   text-align: center;
   font-weight: 800;
   color: #475569;
-  margin-bottom: 6px;
-  font-size: 14px;
+  margin-bottom: 4px;
+  font-size: 13px;
   text-transform: uppercase;
   letter-spacing: 1px;
   border-bottom: 1px solid #cbd5e1;
   width: 100%;
-  padding-bottom: 4px;
+  padding-bottom: 2px;
 }
 
 /* Container for both frames */
@@ -702,10 +731,10 @@ body {
   flex-direction: row;
   align-items: stretch;
   justify-content: center;
-  gap: 14px;
+  gap: 10px;
   width: 100%;
   flex: 0 0 auto;
-  margin: 6px 0;
+  margin: 4px 0 6px 0;
 }
 
 /* Individual Frame Wrapper */
@@ -714,21 +743,21 @@ body {
   flex-direction: column;
   align-items: center;
   flex: 1;
-  max-width: 290px;
-  gap: 6px;
+  max-width: 260px;
+  gap: 4px;
 }
 
 /* Header Bar above each viewport (Unobstructed View) */
 .pmi-frame-header {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 800;
   color: #334155;
   text-transform: uppercase;
-  letter-spacing: 1.2px;
+  letter-spacing: 1px;
   background: #f1f5f9;
   border: 1.5px solid #cbd5e1;
   border-radius: 5px;
-  padding: 4px 14px;
+  padding: 3px 10px;
   line-height: 1.2;
   box-sizing: border-box;
   width: 100%;
@@ -738,6 +767,8 @@ body {
 /* Outer Square Box (Brushed Metal / Grey Panel look) - Scaled for horizontal dual screens */
 .pmi-outer-frame {
   width: 100%;
+  max-width: 250px;
+  max-height: 250px;
   aspect-ratio: 1 / 1;
   background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%);
   border: 3px solid #94a3b8;
@@ -774,7 +805,7 @@ body {
   left: 0;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   z-index: 0;
   transition: opacity 0.3s ease;
 }
@@ -873,8 +904,11 @@ body {
   /* Increased from 32px */
   height: 42px;
   /* Increased from 32px */
-  color: #0f172a;
+  color: #64748b;
   margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .sign-text {
@@ -1008,21 +1042,23 @@ body {
 /* PMI Top Status Bar */
 .pmi-status-bar {
   width: 100%;
-  height: 96px;
+  /* ponytail: expand status bar height for prominent visibility */
+  height: 62px;
   background-color: #5f7287;
   color: #ffffff;
-  font-size: 42px;
+  font-size: 30px;
   font-weight: 900;
   text-transform: uppercase;
-  letter-spacing: 5px;
+  letter-spacing: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 10px;
-  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.25), 0 5px 12px rgba(0, 0, 0, 0.22);
+  border-radius: 8px;
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.25), 0 4px 10px rgba(0, 0, 0, 0.18);
   margin-top: 0;
-  margin-bottom: 16px;
+  margin-bottom: 6px;
   box-sizing: border-box;
+  flex: 0 0 auto;
   transition: background-color 0.3s ease, box-shadow 0.3s ease;
 }
 
@@ -1060,22 +1096,22 @@ body {
   align-items: center;
   width: 100%;
   box-sizing: border-box;
-  margin-top: 8px;
-  gap: 10px;
+  margin-top: 6px;
+  gap: 8px;
 }
 
 .pmi-filename-label {
   font-weight: bold;
   color: #000;
-  font-size: 13px;
+  font-size: 12px;
   white-space: nowrap;
 }
 
 .pmi-filename-display {
   flex: 1;
-  height: 36px;
-  padding: 6px 10px;
-  font-size: 13px;
+  height: 32px;
+  padding: 4px 8px;
+  font-size: 12px;
   font-weight: 600;
   font-family: monospace;
   line-height: 1.2;
@@ -1095,25 +1131,31 @@ body {
 /* PMI Parsed Data Fields Grid (Compact Centered 2-Column x 3-Row Layout) */
 .pmi-parsed-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(3, 1fr);
+  gap: 6px 8px;
   width: 100%;
-  max-width: 760px;
   box-sizing: border-box;
-  margin: 16px auto 0 auto;
+  margin: 6px auto 0 auto;
+  /* ponytail: expand grid to fill bottom and eliminate empty space */
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .pmi-data-card {
   background: #ffffff;
   border: 1.5px solid #cbd5e1;
   border-radius: 8px;
-  padding: 10px 16px;
+  padding: 6px 12px;
   display: flex;
   flex-direction: column;
   justify-content: center;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.04);
   transition: all 0.2s ease;
-  min-height: 66px;
+  min-height: 0;
+  height: 100%;
+  min-width: 0;
+  overflow: hidden;
   box-sizing: border-box;
 }
 
@@ -1124,52 +1166,59 @@ body {
 }
 
 .pmi-card-label {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 800;
   color: #64748b;
   text-transform: uppercase;
-  letter-spacing: 0.7px;
+  letter-spacing: 0.5px;
   margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.1;
 }
 
 .pmi-card-value {
-  font-size: 20px;
+  font-size: clamp(12.5px, 1.4vw, 18px);
   font-weight: 900;
   color: #0f172a;
   font-family: 'Consolas', 'Courier New', monospace;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  line-height: 1.2;
+  line-height: 1.15;
+  width: 100%;
+  letter-spacing: -0.2px;
 }
 
-/* PMI Fail Review Navigation Bar (2 Large Touch-Friendly Buttons) */
+/* PMI Fail Review Navigation Bar (3 Touch-Friendly Buttons: Prev, Reset, Next) */
 .pmi-fail-nav {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 20px;
+  gap: 10px;
   width: 100%;
-  max-width: 760px;
-  margin: 14px auto 0 auto;
+  margin: 6px auto 0 auto;
   padding: 0;
   box-sizing: border-box;
+  flex: 0 0 auto;
 }
 
 .pmi-nav-btn {
   flex: 1;
-  height: 54px;
+  /* ponytail: expand button height for touchscreen */
+  height: 48px;
   background: #dc2626;
   color: #ffffff;
   border: 2px solid #b91c1c;
-  border-radius: 10px;
-  font-size: 28px;
+  border-radius: 8px;
+  font-size: 22px;
   font-weight: 900;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.35);
+  box-shadow: 0 3px 8px rgba(220, 38, 38, 0.35);
   transition: all 0.2s ease;
   user-select: none;
 }
@@ -1177,13 +1226,13 @@ body {
 .pmi-nav-btn:hover:not(:disabled) {
   background: #b91c1c;
   border-color: #991b1b;
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(185, 28, 28, 0.45);
+  transform: translateY(-1px);
+  box-shadow: 0 5px 12px rgba(185, 28, 28, 0.45);
 }
 
 .pmi-nav-btn:active:not(:disabled) {
   transform: translateY(1px);
-  box-shadow: 0 2px 6px rgba(185, 28, 28, 0.3);
+  box-shadow: 0 2px 4px rgba(185, 28, 28, 0.3);
 }
 
 .pmi-nav-btn:disabled {
@@ -1193,6 +1242,61 @@ body {
   box-shadow: none;
   cursor: not-allowed;
   opacity: 0.5;
+}
+
+.pmi-reset-btn {
+  flex: 2;
+  /* ponytail: expand button height for touchscreen */
+  height: 48px;
+  background: #5f7287;
+  color: #ffffff;
+  border: 2px solid #4b5d71;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 900;
+  letter-spacing: 1.2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.pmi-reset-btn:hover:not(:disabled) {
+  background: #4b5d71;
+  border-color: #384655;
+  box-shadow: 0 5px 12px rgba(0, 0, 0, 0.28);
+  transform: translateY(-1px);
+}
+
+.pmi-reset-btn:active:not(:disabled) {
+  transform: translateY(1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.pmi-reset-btn:disabled {
+  background: #e2e8f0;
+  border-color: #cbd5e1;
+  color: #94a3b8;
+  box-shadow: none;
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* Inactive/Disabled state for Fail Nav buttons when not failed (WAITING, PASSED, etc.) */
+.pmi-box:not(:has(.pmi-status-bar.failed)) .pmi-fail-nav .pmi-nav-btn,
+.pmi-box:has(.pmi-status-bar.waiting) .pmi-fail-nav button,
+.pmi-box:has(.pmi-status-bar.passed) .pmi-fail-nav .pmi-nav-btn,
+.pmi-fail-nav button:disabled {
+  background: #cbd5e1 !important;
+  border-color: #94a3b8 !important;
+  color: #94a3b8 !important;
+  box-shadow: none !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+  pointer-events: none !important;
 }
 
 /* ============================================================================
@@ -1598,6 +1702,8 @@ body {
   height: calc(var(--base-h, 800px) - 100px);
   /* Adjust for smaller screen */
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   border: 1px solid #ccc;
@@ -1606,19 +1712,45 @@ body {
   padding: 10px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   min-height: 0;
+  box-sizing: border-box;
 }
 
 .log-toolbar {
   flex: 0 0 auto;
+  width: 100%;
+  max-width: 100%;
   margin-bottom: 8px;
 }
 
 .log-scroll {
   flex: 1 1 auto;
   overflow-y: auto;
-  min-height: 100;
+  overflow-x: auto;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 100px;
   border: 1px solid #e5e5e5;
   border-radius: 6px;
+}
+
+.log-scroll::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.log-scroll::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+
+.log-scroll::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.log-scroll::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
 
 .log-footer {
@@ -1697,7 +1829,7 @@ body {
   background-color: #0369a1;
 }
 
-/* Log Table - Optimized for 1024x600 */
+/* Log Table - Optimized for 1024x600 and 1280x800 HMI */
 .log-table {
   width: 100%;
   border-collapse: collapse;
@@ -1710,6 +1842,64 @@ body {
   padding: 6px 4px;
   border-bottom: 1px solid #dee2e6;
   color: #333;
+  white-space: nowrap;
+}
+
+/* RFID Log Table Column Constraints to prevent wide cell overflow */
+#log .log-table th:nth-child(1),
+#log .log-table td:nth-child(1) {
+  max-width: 130px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#log .log-table th:nth-child(2),
+#log .log-table td:nth-child(2) {
+  max-width: 90px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#log .log-table th:nth-child(3),
+#log .log-table td:nth-child(3) {
+  max-width: 105px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#log .log-table th:nth-child(4),
+#log .log-table td:nth-child(4) {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Cassette Log Table Column Constraints */
+#cassette-log .log-table th:nth-child(1),
+#cassette-log .log-table td:nth-child(1) {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#cassette-log .log-table th:nth-child(3),
+#cassette-log .log-table td:nth-child(3) {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#cassette-log .log-table th:nth-child(4),
+#cassette-log .log-table td:nth-child(4) {
+  max-width: 90px;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
@@ -1741,11 +1931,11 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 3px 10px;
+  padding: 3px 8px;
   border-radius: 999px;
   font-size: 10.5px;
   font-weight: 700;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.2px;
   white-space: nowrap;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
@@ -1766,6 +1956,14 @@ body {
   background: #fff8e1;
   color: #b78103;
   border: 1px solid #ffe082;
+}
+
+.badge-result svg {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  display: inline-block;
+  vertical-align: middle;
 }
 
 .search-select {
@@ -2296,15 +2494,24 @@ body {
   text-align: center;
   margin-top: 30px;
   padding: 30px 20px;
+  overflow-x: hidden;
 }
 
 .pm-warning-icon {
-  font-size: 90px;
+  font-size: 80px;
   line-height: 1;
   margin-bottom: 20px;
   color: #ff3d00;
-  /* strong red/orange */
+  display: flex;
+  justify-content: center;
+  align-items: center;
   animation: pulse 1.5s infinite;
+}
+
+.pm-warning-icon svg {
+  width: 80px;
+  height: 80px;
+  display: block;
 }
 
 .pm-warning-title {
@@ -2690,10 +2897,18 @@ body {
   }
 
   /* Home Page Layout Adjustments */
-  #home .content-boxes {
+  #home .content-boxes:not(.view-rfid-full):not(.view-pmi-full) {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+  }
+
+  #home .content-boxes.view-pmi-full,
+  #home .content-boxes.view-rfid-full {
+    grid-template-columns: 1fr !important;
+  }
+
+  #home .content-boxes {
     gap: 8px !important;
-    height: calc(100vh - 85px) !important;
+    height: calc(100% - 60px) !important;
   }
 
   .info-box,
@@ -3504,7 +3719,9 @@ body {
   line-height: 1;
   flex-shrink: 0;
   width: 24px;
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .view-opt-btn.active .view-opt-icon {
@@ -3539,6 +3756,9 @@ body {
   color: #0284c7;
   opacity: 0;
   transition: opacity 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .view-opt-btn.active .view-opt-check {
@@ -3677,7 +3897,7 @@ body {
 }
 
 /* ==========================================================================
-   MODE 3: PMI FULL VIEW (Proper Scaling, No Clipping, Full Data Visibility)
+   MODE 3: PMI FULL VIEW (20% Header / 50% Images / 30% Data, Full-Width Fill)
    ========================================================================== */
 #home .content-boxes.view-pmi-full {
   grid-template-columns: 1fr;
@@ -3696,91 +3916,151 @@ body {
 #home .content-boxes.view-pmi-full .pmi-box {
   display: flex;
   flex-direction: column;
-  justify-content: flex-start;
-  align-items: center;
-  padding: 12px 24px 22px 24px;
+  justify-content: space-between;
+  align-items: stretch;
+  padding: 8px 16px 12px 16px;
+  width: 100%;
   height: 100%;
   box-sizing: border-box;
+  overflow: hidden;
+  gap: 6px;
 }
 
+/* --------------------------------------------------------------------------
+   1. Header Section: ~20% Vertical Allocation
+   - .pmi-box-title: Compact category label
+   - .pmi-status-bar: Full-width high-visibility banner with large bold text
+   -------------------------------------------------------------------------- */
 #home .content-boxes.view-pmi-full .pmi-box-title {
   width: 100%;
-  max-width: 950px;
-  font-size: 16.5px;
+  max-width: none;
+  font-size: 13px;
   font-weight: 800;
-  margin-bottom: 6px;
-  padding-bottom: 4px;
-  position: relative;
-  display: flex;
-  justify-content: center;
-  align-items: center;
+  margin: 0;
+  padding-bottom: 2px;
+  text-align: center;
+  flex: 0 0 auto;
 }
 
-
-/* Status Bar - Enlarge PASS / WAITING / FAILED */
 #home .content-boxes.view-pmi-full .pmi-status-bar {
   width: 100%;
-  max-width: 950px;
-  height: 64px;
-  font-size: 32px;
+  max-width: none;
+  height: calc(20% - 24px);
+  min-height: 58px;
+  max-height: 82px;
+  font-size: clamp(28px, 3.2vw, 42px);
   font-weight: 900;
-  letter-spacing: 5px;
-  margin: 0 auto 12px auto;
+  letter-spacing: 4px;
+  margin: 0;
   border-radius: 8px;
   box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.25), 0 4px 10px rgba(0, 0, 0, 0.18);
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-/* Camera Viewports Container - Centered 950px width with 1:1 Square Frames */
+/* --------------------------------------------------------------------------
+   2. Images Section: ~50% Vertical Allocation
+   - .pmi-frames-container: Dual viewports container stretching across 50% height
+   - .pmi-frame-wrapper: Full height wrapper
+   - .pmi-outer-frame: Square 1:1 aspect ratio matching camera resolution,
+     occupying full available height without clipping
+   -------------------------------------------------------------------------- */
 #home .content-boxes.view-pmi-full .pmi-frames-container {
   display: flex;
   flex-direction: row;
   align-items: center;
   justify-content: center;
-  gap: 26px;
+  gap: 16px;
   width: 100%;
-  max-width: 950px;
-  margin: 0 auto 14px auto;
+  max-width: none;
+  margin: 0 auto;
+  flex: 0 0 calc(50% - 12px);
+  height: calc(50% - 12px);
+  min-height: 0;
 }
 
 #home .content-boxes.view-pmi-full .pmi-frame-wrapper {
   flex: 1;
-  max-width: 455px;
+  max-width: none;
+  height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  justify-content: center;
+  gap: 4px;
+  min-height: 0;
 }
 
 #home .content-boxes.view-pmi-full .pmi-frame-header {
-  font-size: 13.5px;
+  font-size: clamp(11.5px, 1.1vw, 13.5px);
   font-weight: 800;
-  padding: 6px 16px;
+  padding: 3px 16px;
   border-radius: 6px;
-  width: 100%;
+  width: auto;
+  min-width: 180px;
   text-align: center;
+  flex: 0 0 auto;
 }
 
 #home .content-boxes.view-pmi-full .pmi-outer-frame {
-  width: 100%;
-  max-height: 340px;
+  height: calc(100% - 26px);
+  max-height: 100%;
   aspect-ratio: 1 / 1;
+  width: auto;
+  max-width: 100%;
   border-radius: 8px;
+  flex: 0 1 auto;
+  min-height: 0;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-/* Bottom Parsed Grid - 3 Columns x 2 Rows with Enlarged Data Cards */
+/* --------------------------------------------------------------------------
+   3. Data & Controls Section: ~30% Vertical Allocation
+   - .pmi-fail-nav: Touch-friendly slider buttons across 100% width
+   - .pmi-parsed-grid: 3 Columns x 2 Rows filled to 100% width & remaining height
+   -------------------------------------------------------------------------- */
+#home .content-boxes.view-pmi-full .pmi-fail-nav {
+  max-width: none;
+  width: 100%;
+  /* ponytail: enlarge button height for touch screen, balance vertically with card rows */
+  height: clamp(50px, 6.2vh, 56px);
+  margin: 0;
+  flex: 0 0 auto;
+  gap: 12px;
+}
+
+#home .content-boxes.view-pmi-full .pmi-nav-btn {
+  height: 100%;
+  font-size: clamp(22px, 2.2vw, 26px);
+}
+
+#home .content-boxes.view-pmi-full .pmi-reset-btn {
+  height: 100%;
+  font-size: clamp(14px, 1.4vw, 17px);
+}
+
 #home .content-boxes.view-pmi-full .pmi-parsed-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px 20px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: 1fr 1fr;
+  gap: 6px 12px;
   width: 100%;
-  max-width: 950px;
-  margin: 0 auto;
+  max-width: none;
+  margin: 0;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: calc(30% - 64px);
 }
 
 #home .content-boxes.view-pmi-full .pmi-data-card {
-  min-height: 76px;
-  height: 76px;
-  padding: 10px 20px;
+  min-height: 0;
+  height: 100%;
+  padding: 3px 12px;
   border-radius: 8px;
   display: flex;
   flex-direction: column;
@@ -3788,21 +4068,32 @@ body {
   border: 1.5px solid #cbd5e1;
   background: #ffffff;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 #home .content-boxes.view-pmi-full .pmi-card-label {
-  font-size: 12.5px;
+  font-size: clamp(10px, 0.95vw, 11.5px);
   font-weight: 800;
   color: #64748b;
-  letter-spacing: 0.6px;
-  margin-bottom: 4px;
+  letter-spacing: 0.5px;
+  margin-bottom: 1px;
   text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.1;
 }
 
 #home .content-boxes.view-pmi-full .pmi-card-value {
-  font-size: 22px;
+  font-size: clamp(12px, 1.4vw, 17px);
   font-weight: 900;
   color: #0f172a;
   font-family: 'Consolas', 'Courier New', monospace;
-  line-height: 1.1;
+  line-height: 1.15;
+  width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: -0.2px;
 }

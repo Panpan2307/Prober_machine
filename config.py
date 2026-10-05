@@ -41,6 +41,39 @@ class Config:
     # Set this to False for actual production hardware/database connection mode.
     MOCKUP_MODE = False
 
+    # ——— Test Mode Locked Store Data (Store Verification Mode) ———
+    STORE_TEST_MODE_DEFAULT = "normal"  # "normal" or "test"
+    STORE_ALLOWED_PAIRS = [
+        {
+            "fpc_id": "2ID018FV100R",
+            "header_id": "NXPTEST010",
+            "touchdown": 1000,
+            "latest_pm": "2026-09-02",
+            "comment": "NEW PROBE CARD JA",
+        },
+        {
+            "fpc_id": "2ID018FV111R",
+            "header_id": "NXPTEST009",
+            "touchdown": 10200,
+            "latest_pm": "2026-09-02",
+            "comment": "NEW PROBE CARD JA",
+        }
+    ]
+    STORE_ALLOWED_CASSETTES = [
+        {
+            "tag_id": "E0 04 01 08 48 6B AC 33",
+            "aliases": ["e0040108486bac33", "33ac6b48080104e0"],
+            "lot_id": "NOPE34ADH004",
+            "batch_id": "C6H999",
+        },
+        {
+            "tag_id": "E0 04 01 08 48 6B E2 05",
+            "aliases": ["e0040108486be205", "05e26b48080104e0"],
+            "lot_id": "NOPE34ADH012",
+            "batch_id": "C6H101",
+        }
+    ]
+
     DB_CONFIG = {
         'host': '92.121.77.57',
         'port': 3306,
@@ -83,20 +116,24 @@ class Config:
     # present in Second_header_wo_error.py only; safe to keep here
     SUPPRESS_UI_WARNINGS = True
 
-    # ——— Serial ports (Auto-detects Windows COM vs Linux /dev/ttyUSB) ———
+    # ============================================================================
+    # Linux Reader FPC & Header Connecting
+    # Note: On Linux, Main_Prober_with_error dynamically resolves ports via physical USB topology
+    # and active hardware probing, so these defaults serve as initial fallback values.
+    # ============================================================================
     import platform
     if platform.system().lower() == "linux":
-        RFID_PORT = "/dev/ttyUSB0"          # Header Reader (RFID-3)
-        RFID_PORT_FPC = "/dev/ttyUSB1"      # FPC Reader (RFID-2)
+        RFID_PORT = "/dev/ttyUSB1"          # Header Reader (RFID-3 fallback)
+        RFID_PORT_FPC = "/dev/ttyUSB0"      # FPC Reader (RFID-2 fallback)
         RFID_PORT_CASSETTE = "/dev/ttyUSB2" # Cassette Reader (RFID-1)
     else:
         RFID_PORT = "COM4"
-        RFID_PORT_FPC = "COM6"
+        RFID_PORT_FPC = "COM5"
         RFID_PORT_CASSETTE = "COM8"
 
     RFID_BAUDRATE = 115200
     RFID_TX_POWER = 26.0       # Header Reader TX Power (dBm, 13.0 - 26.0)
-    RFID_TX_POWER_FPC = 24.0   # FPC Reader TX Power (dBm, 13.0 - 26.0)
+    RFID_TX_POWER_FPC = 26.0   # FPC Reader TX Power (dBm, 13.0 - 26.0)
 
     # ——— Stage Machine Timers / Windows ———
     FPC_WINDOW_S = 10.0              # 10s reading window when sensor goes ACTIVE
@@ -104,7 +141,7 @@ class Config:
     CASSETTE_CLEAR_TIMEOUT_S = 60
 
     # ——— Laptop simulator (dev/test) ———
-    SIMULATE_SENSOR_WITH_KEYBOARD = True
+    SIMULATE_SENSOR_WITH_KEYBOARD = False
     SENSOR_TOGGLE_KEY = "t"
 
 

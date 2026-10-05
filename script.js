@@ -83,9 +83,81 @@ function resetInactivityFromEvent() {
 }
 
 // ============================================================================
+// DYNAMIC PMI CARD TEXT AUTO-FIT (Scale font to fit resolution and card bounds)
+// ============================================================================
+function fitPmiCardText() {
+  const cards = document.querySelectorAll('.pmi-data-card');
+  if (!cards || !cards.length) return;
+
+  const isFullView = document.querySelector('#home .content-boxes')?.classList.contains('view-pmi-full');
+  const minFontSize = 8.5;
+
+  cards.forEach(card => {
+    const valEl = card.querySelector('.pmi-card-value');
+    if (!valEl) return;
+
+    // Reset styles to measure natural CSS layout and enable responsiveness
+    valEl.style.fontSize = '';
+    valEl.style.letterSpacing = '';
+
+    const text = valEl.textContent?.trim();
+    if (!text || text === '-' || text === '—') {
+      valEl.removeAttribute('title');
+      return;
+    }
+
+    // Set title attribute for tooltip / touch inspect
+    valEl.title = text;
+
+    const cardStyle = window.getComputedStyle(card);
+    const padLeft = parseFloat(cardStyle.paddingLeft) || 0;
+    const padRight = parseFloat(cardStyle.paddingRight) || 0;
+    const availableWidth = card.clientWidth - padLeft - padRight;
+
+    if (availableWidth <= 0) return;
+
+    // Only apply inline override if the text actually overflows the card width
+    if (valEl.scrollWidth > availableWidth) {
+      const computed = window.getComputedStyle(valEl);
+      let currentSize = parseFloat(computed.fontSize) || (isFullView ? 19.5 : 17.0);
+      const ratio = availableWidth / valEl.scrollWidth;
+      let targetSize = Math.max(minFontSize, +(currentSize * ratio).toFixed(1));
+      valEl.style.fontSize = targetSize + 'px';
+
+      // Fine-tune step loop to ensure text fits with subpixel precision
+      while (valEl.scrollWidth > availableWidth && targetSize > minFontSize) {
+        targetSize = Math.max(minFontSize, +(targetSize - 0.3).toFixed(1));
+        valEl.style.fontSize = targetSize + 'px';
+      }
+
+      // Progressive letter spacing for dense setup filenames
+      if (valEl.scrollWidth > availableWidth) {
+        valEl.style.letterSpacing = '-0.4px';
+      }
+      if (valEl.scrollWidth > availableWidth) {
+        valEl.style.letterSpacing = '-0.8px';
+      }
+    }
+  });
+}
+window.fitPmiCardText = fitPmiCardText;
+window.addEventListener('resize', fitPmiCardText);
+
+// ============================================================================
 // HOME VIEW MODE CONTROLLER (Split 50/50, RFID Full, PMI Full)
 // ============================================================================
 let currentHomeViewMode = 'split'; // 'split' | 'rfid' | 'pmi'
+try {
+  const urlParam = new URLSearchParams(window.location.search).get('view');
+  if (urlParam && ['split', 'rfid', 'pmi'].includes(urlParam)) {
+    currentHomeViewMode = urlParam;
+  } else {
+    const saved = localStorage.getItem('home_view_mode');
+    if (saved && ['split', 'rfid', 'pmi'].includes(saved)) {
+      currentHomeViewMode = saved;
+    }
+  }
+} catch (e) { }
 
 function handleHomeNavClick(btnEl) {
   const activePage = getActivePageId();
@@ -122,6 +194,8 @@ function closeHomeViewPopover() {
 
 function setHomeViewMode(mode) {
   currentHomeViewMode = mode;
+  try { localStorage.setItem('home_view_mode', mode); } catch (e) { }
+
   const contentBoxes = document.querySelector('#home .content-boxes');
   if (!contentBoxes) return;
 
@@ -140,7 +214,34 @@ function setHomeViewMode(mode) {
   });
 
   closeHomeViewPopover();
+
+  requestAnimationFrame(() => {
+    if (typeof fitPmiCardText === 'function') fitPmiCardText();
+  });
 }
+
+// Restore saved view mode on DOM load if not default, and check URL page parameter
+document.addEventListener('DOMContentLoaded', () => {
+  if (typeof fetchOperationMode === 'function') {
+    fetchOperationMode();
+  }
+
+  if (currentHomeViewMode && currentHomeViewMode !== 'split') {
+    setHomeViewMode(currentHomeViewMode);
+  } else {
+    requestAnimationFrame(() => {
+      if (typeof fitPmiCardText === 'function') fitPmiCardText();
+    });
+  }
+
+  // Check URL param ?page=log or hash #log for direct deep-linking
+  const urlParams = new URLSearchParams(window.location.search);
+  const targetPage = urlParams.get('page') || (window.location.hash ? window.location.hash.replace('#', '') : null);
+  if (targetPage && document.getElementById(targetPage)) {
+    const btn = document.querySelector(`.nav-button[onclick*="'${targetPage}'"]`);
+    switchPage(targetPage, btn || undefined);
+  }
+});
 
 // Global click listener to close popover when clicking outside
 document.addEventListener('click', function (e) {
@@ -407,6 +508,7 @@ function updateHomeFromLocal() {
         if (currentPairKey !== window.__lastPairKey) {
           window.__lastPairKey = currentPairKey;
           window.__pairWarnKey = null;
+          window.__dismissedAlertKey = null; // New tag arrived: reset dismissal
           window.__pairModalDismissed = false;
         }
 
@@ -414,20 +516,23 @@ function updateHomeFromLocal() {
           window.__missingTagCycles = 0;
           updateDisplayFields(rfidData);
 
-          const isMismatch = (rfidData.mismatch_detected === true) || (bothHave && rfidData.match_ok === false);
+          const isStoreError = (data.operation_mode === 'test' && (data.store_error === true || rfidData.store_error === true));
+          const isMismatch = isStoreError || (rfidData.mismatch_detected === true) || (bothHave && rfidData.match_ok === false);
 
           if (isMismatch) {
             const hdr = rfidData.mismatch_header || rfidData.header_id || '-';
             const fpc = rfidData.mismatch_fpc || rfidData.fpc_id || '-';
-            const mType = (rfidData.mismatch_type === 'not_found') ? 'not_found' : 'mismatch';
+            const mType = isStoreError ? 'store_error' : ((rfidData.mismatch_type === 'not_found') ? 'not_found' : 'mismatch');
             const isNotFound = (mType === 'not_found');
-            const alertType = isNotFound ? 'not_found' : 'mismatch';
+            const alertType = mType;
 
-            const msg = rfidData.mismatch_message || (
-              isNotFound
-                ? `Tag Header: ${hdr} or FPC: ${fpc} not found in database`
-                : `Header: ${hdr}  |  FPC: ${fpc}  |  NOT matching together`
-            );
+            const msg = isStoreError
+              ? (rfidData.store_error_message || data.store_error_message || "ข้อมูลที่อ่านได้ไม่ถูกต้อง ไม่ใช่ข้อมูลที่ออกมาจาก store")
+              : (rfidData.mismatch_message || (
+                isNotFound
+                  ? `Tag Header: ${hdr} or FPC: ${fpc} not found in database`
+                  : `Header: ${hdr}  |  FPC: ${fpc}  |  NOT matching together`
+              ));
 
             const warnKey = `${alertType.toUpperCase()}|${hdr}|${fpc}`;
 
@@ -435,21 +540,27 @@ function updateHomeFromLocal() {
               window.__pairWarnKey = warnKey;
               window.__pairModalDismissed = false;
               window.__pmDetailText = msg;
-              showPmWarning(msg, { type: alertType });
+              window.__lastAlertWasStoreError = isStoreError;
+              showPmWarning(msg, { type: alertType, warnKey: warnKey });
             }
 
             const box = document.getElementById('info-box');
             if (box) {
               box.classList.add('warning-active');
               box.classList.remove('tag-active');
-              _updateInfoBoxBadge(box, 'danger', isNotFound ? 'NOT FOUND' : 'MISMATCH');
+              _updateInfoBoxBadge(box, 'danger', isStoreError ? 'STORE ERROR' : (isNotFound ? 'NOT FOUND' : 'MISMATCH'));
             }
           } else {
             // No mismatch
+            if (window.__lastAlertWasStoreError && !data.store_error && !rfidData.store_error) {
+              hidePmWarning();
+              window.__lastAlertWasStoreError = false;
+              window.__dismissedAlertKey = null;
+            }
             window.__pairWarnKey = null;
             const box = document.getElementById('info-box');
             const td = Number(rfidData?.touchdown ?? 0);
-            if (box && (!Number.isFinite(td) || td < TD_LIMIT) && !window.__pmModalOpen && !isCassetteNotFound) {
+            if (box && (!Number.isFinite(td) || td < TD_LIMIT) && !window.__pmModalOpen && !isCassetteNotFound && !cassetteData.store_error) {
               box.classList.remove('warning-active');
               if (bothHave && (rfidData.match_ok === true || rfidData.pair_ok === true)) {
                 if (td >= TD_PREWARN_MIN) {
@@ -478,6 +589,7 @@ function updateHomeFromLocal() {
         if (currentCassKey !== window.__lastCassetteKey) {
           window.__lastCassetteKey = currentCassKey;
           window.__cassetteWarnKey = null;
+          window.__dismissedAlertKey = null; // New cassette arrived: reset dismissal
         }
 
         // Show Cassette's tag/lot/batch on the main card fields
@@ -506,40 +618,60 @@ function updateHomeFromLocal() {
           window.__cassetteWarnKey = null;
         }
 
-        // Trigger Pop-up Modal when Cassette is NOT FOUND in database
-        if (isCassetteNotFound) {
+        // Trigger Pop-up Modal ONLY when Cassette is PRESENT and has an error
+        const isCassStoreError = Boolean(isCassettePresent && data.operation_mode === 'test' && cassetteData.store_error === true);
+        const shouldWarnCassette = Boolean(isCassettePresent && (isCassetteNotFound || isCassStoreError));
+
+        if (shouldWarnCassette) {
           const cassId = cassetteData.cassette_id || 'Unknown';
-          const msg = cassetteData.mismatch_message || cassetteData.message || `Tag Cassette (${cassId}) ไม่พบข้อมูลในระบบ Smart Store หรือยังไม่ได้ทำ Data Mapping จากตู้ Store`;
-          const warnKey = `CASSETTE_NOT_FOUND|${cassId}`;
+          const msg = isCassStoreError
+            ? "ข้อมูลที่อ่านได้ไม่ถูกต้อง ไม่ใช่ข้อมูลที่ออกมาจาก store"
+            : (cassetteData.mismatch_message || cassetteData.message || `Tag Cassette (${cassId}) ไม่พบข้อมูลในระบบ Smart Store หรือยังไม่ได้ทำ Data Mapping จากตู้ Store`);
+          const warnKey = isCassStoreError ? `STORE_ERROR_CASSETTE|${cassId}` : `CASSETTE_NOT_FOUND|${cassId}`;
 
           if (window.__cassetteWarnKey !== warnKey) {
             window.__cassetteWarnKey = warnKey;
             window.__pmDetailText = msg;
-            showPmWarning(msg, { type: 'not_found', tagType: 'cassette' });
+            window.__lastAlertWasStoreError = isCassStoreError;
+            showPmWarning(msg, { type: isCassStoreError ? 'store_error' : 'not_found', tagType: 'cassette', warnKey: warnKey });
           }
 
           const box = document.getElementById('info-box');
           if (box) {
             box.classList.add('warning-active');
             box.classList.remove('tag-active');
-            _updateInfoBoxBadge(box, 'danger', 'NOT FOUND');
+            _updateInfoBoxBadge(box, 'danger', isCassStoreError ? 'STORE ERROR' : 'NOT FOUND');
           }
+        } else {
+          window.__cassetteWarnKey = null;
         }
 
-        // Show/hide clear button footer on info-box (visible during warning / NOT FOUND state)
-        const boxEl = document.getElementById('info-box');
-        const clearFooter = document.getElementById('info-box-footer');
-        if (clearFooter) {
-          const isWarning = isCassetteNotFound || (boxEl && boxEl.classList.contains('warning-active'));
-          clearFooter.style.display = isWarning ? 'flex' : 'none';
+        if (!tagPresent && !isCassettePresent) {
+          window.__dismissedAlertKey = null;
+          window.__pairWarnKey = null;
+          window.__cassetteWarnKey = null;
+          window.__lastAlertWasStoreError = false;
         }
 
         const hasAnyTag = tagPresent || isCassettePresent;
+        const isFpcConn = !!data.rfid_status?.fpc?.connected;
+        const isCassConn = !!(data.rfid_status?.cassette?.connected || data.cassette_connected);
+        const isHdrConn = !!data.rfid_status?.header?.connected;
+        const allReadersDisconnected = !isFpcConn && !isCassConn && !isHdrConn && !isReaderConnected;
         const isAnyConnected = isReaderConnected || !!data.cassette_connected || isCassettePresent || (data.rfid_status?.cassette?.connected);
 
         // connection + green state (respects warning-active)
         updateConnectionStatus(isAnyConnected, hasAnyTag);
         updateRfidStatusBar(data.rfid_status);
+
+        // Show/hide clear button footer on info-box (visible during warning state OR when all readers disconnect / red box)
+        const boxEl = document.getElementById('info-box');
+        const clearFooter = document.getElementById('info-box-footer');
+        if (clearFooter) {
+          const isWarning = isCassetteNotFound || isCassStoreError || (boxEl && boxEl.classList.contains('warning-active'));
+          const isDiscRed = allReadersDisconnected || !isAnyConnected || (boxEl && boxEl.classList.contains('disconnected'));
+          clearFooter.style.display = (isWarning || isDiscRed) ? 'flex' : 'none';
+        }
 
         kickAgvBackground();
       }
@@ -607,8 +739,14 @@ function clearAllDisplayFields() {
     _updateInfoBoxBadge(document.getElementById('info-box'), 'none');
   }
   const clearFooter = document.getElementById('info-box-footer');
-  if (clearFooter && !window.__isCassetteNotFound) {
-    clearFooter.style.display = 'none';
+  if (clearFooter) {
+    const box = document.getElementById('info-box');
+    const isDisc = box && box.classList.contains('disconnected');
+    if (!window.__isCassetteNotFound && !isDisc) {
+      clearFooter.style.display = 'none';
+    } else {
+      clearFooter.style.display = 'flex';
+    }
   }
   const pre = document.getElementById('td-prewarn');
   if (pre) { pre.style.display = 'none'; pre.textContent = ''; pre.classList.remove('hot'); }
@@ -636,33 +774,6 @@ function updateDisplayFields(rfidData) {
 }
 
 
-function updateConnectionStatus(connected, tagPresent) {
-  const box = document.getElementById('info-box');
-
-  if (box) {
-    box.classList.toggle('connected', !!connected);
-    box.classList.toggle('disconnected', !connected);
-
-    const hasWarning = box.classList.contains('warning-active');
-    if (hasWarning) {
-      box.classList.remove('tag-active');
-    } else {
-      box.classList.toggle('tag-active', !!connected && !!tagPresent);
-    }
-  }
-
-  // --- Reader status text ---
-  const homeStatus = document.getElementById('agv1-status-text');
-  if (homeStatus) {
-    if (connected !== __lastReaderConnected) {
-      // Only update if the state actually changed
-      homeStatus.textContent = connected
-        ? 'Reader: Connected'
-        : 'Reader: Disconnected';
-      __lastReaderConnected = connected;
-    }
-  }
-}
 let __lastProberConnected = null;
 
 function updateConnectionStatus(connected, tagPresent) {
@@ -678,6 +789,24 @@ function updateConnectionStatus(connected, tagPresent) {
     } else {
       box.classList.toggle('tag-active', !!connected && !!tagPresent);
     }
+
+    // Keep clear button visible when disconnected (red box) or during warning
+    const clearFooter = document.getElementById('info-box-footer');
+    if (clearFooter) {
+      const isDisc = !connected || box.classList.contains('disconnected');
+      if (isDisc || hasWarning || window.__isCassetteNotFound) {
+        clearFooter.style.display = 'flex';
+      }
+    }
+  }
+
+  // --- Reader status text ---
+  const homeStatus = document.getElementById('agv1-status-text') || document.getElementById('agv1-reader-status');
+  if (homeStatus && connected !== __lastReaderConnected) {
+    homeStatus.textContent = connected
+      ? 'Reader: Connected'
+      : 'Reader: Disconnected';
+    __lastReaderConnected = connected;
   }
 
   // --- Home page reader status ---
@@ -1195,39 +1324,50 @@ function displayLogs(data) {
   tableBody.innerHTML = data.map(log => {
     const src = String(log.source || '').toUpperCase();
     const resType = String(log.resultType || '').toLowerCase();
-    const isNotFound = (src === 'NOT_FOUND' || resType === 'not_found');
-    const isMismatch = !isNotFound && (Boolean(log.isMismatch) || src === 'MISMATCH' || resType === 'mismatch');
+    const isTest = Boolean(log.isTest) || src.startsWith('TEST');
+    const isNotFound = (src === 'NOT_FOUND' || src === 'TEST_NOT_FOUND' || resType === 'not_found');
+    const isMismatch = !isNotFound && (Boolean(log.isMismatch) || src === 'MISMATCH' || src === 'TEST_MISMATCH' || resType === 'mismatch');
+
+    const SVG_BADGE_MATCH = `<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+    const SVG_BADGE_MISMATCH = `<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+    const SVG_BADGE_NOTFOUND = `<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16" y2="16"/></svg>`;
+
+    const testBadge = isTest ? `<span style="display:inline-block; font-size:10px; font-weight:700; background:#f59e0b; color:#fff; border-radius:4px; padding:1px 6px; margin-right:4px;">TEST</span>` : '';
 
     let statusBadge;
     let rowTitle;
     if (isNotFound) {
-      statusBadge = `<span class="badge-result badge-result-notfound">🔍 Not Found (ไม่พบข้อมูล)</span>`;
+      statusBadge = `${testBadge}<span class="badge-result badge-result-notfound">${SVG_BADGE_NOTFOUND} Not Found (ไม่พบข้อมูล)</span>`;
       rowTitle = 'Warning: Tag not registered in database';
     } else if (isMismatch) {
-      statusBadge = `<span class="badge-result badge-result-mismatch">❌ Mismatch (ผิดคู่)</span>`;
+      statusBadge = `${testBadge}<span class="badge-result badge-result-mismatch">${SVG_BADGE_MISMATCH} Mismatch (ผิดคู่)</span>`;
       rowTitle = 'Warning: FPC and Header Mismatch';
     } else {
-      statusBadge = `<span class="badge-result badge-result-match">✓ Match (ถูกต้อง)</span>`;
+      statusBadge = `${testBadge}<span class="badge-result badge-result-match">${SVG_BADGE_MATCH} Match (ถูกต้อง)</span>`;
       rowTitle = 'Valid Tag Pair';
     }
 
     let cassBadge;
     const cStatus = String(log.cassetteStatus || '').toUpperCase().trim();
     const cResType = String(log.cassetteResultType || '').toLowerCase().trim();
-    if (cStatus === 'MATCH_OK' || cStatus === 'FOUND' || cStatus === 'LOADED' || cStatus === 'ACTIVE' || cResType === 'match') {
-      cassBadge = `<span class="badge-result badge-result-match">✓ Match (ถูกต้อง)</span>`;
-    } else if (cStatus === 'NOT_FOUND' || cResType === 'not_found') {
-      cassBadge = `<span class="badge-result badge-result-notfound">🔍 Not Found (ไม่พบข้อมูล)</span>`;
+    const isCassTest = cStatus.startsWith('TEST_');
+    const cassTestBadge = isCassTest ? `<span style="display:inline-block; font-size:10px; font-weight:700; background:#f59e0b; color:#fff; border-radius:4px; padding:1px 6px; margin-right:4px;">TEST</span>` : '';
+
+    if (cStatus === 'MATCH_OK' || cStatus === 'FOUND' || cStatus === 'LOADED' || cStatus === 'ACTIVE' || cStatus === 'TEST_MATCH_OK' || cStatus === 'TEST_LOADED' || cResType === 'match') {
+      cassBadge = `${cassTestBadge}<span class="badge-result badge-result-match">${SVG_BADGE_MATCH} Match (ถูกต้อง)</span>`;
+    } else if (cStatus === 'NOT_FOUND' || cStatus === 'TEST_NOT_FOUND' || cResType === 'not_found') {
+      cassBadge = `${cassTestBadge}<span class="badge-result badge-result-notfound">${SVG_BADGE_NOTFOUND} Not Found (ไม่พบข้อมูล)</span>`;
     } else {
       cassBadge = `<span class="text-muted" style="color: #94a3b8; font-weight: 500;">-</span>`;
     }
 
+    const headerDisplay = (log.headerName || log.headerId) || '';
     return `
         <tr title="${rowTitle}">
-            <td>${log.lotId || ''}</td>
-            <td>${log.batchId || ''}</td>
-            <td>${log.fpcId || ''}</td>
-            <td>${(log.headerName || log.headerId) || ''}</td>
+            <td title="${log.lotId || ''}">${log.lotId || ''}</td>
+            <td title="${log.batchId || ''}">${log.batchId || ''}</td>
+            <td title="${log.fpcId || ''}">${log.fpcId || ''}</td>
+            <td title="${headerDisplay}">${headerDisplay}</td>
             <td>${log.timestamp || ''}</td>
             <td>${log.agvNo || ''}</td>
             <td>${log.machineNo || ''}</td>
@@ -1652,10 +1792,10 @@ function displayCassetteLogs(data) {
   if (noData) noData.style.display = 'none';
   tableBody.innerHTML = data.map(log => `
         <tr>
-            <td>${log.cassetteId || ''}</td>
+            <td title="${log.cassetteId || ''}">${log.cassetteId || ''}</td>
             <td>${log.machineStatus || ''}</td>
-            <td>${log.lotId || ''}</td>
-            <td>${log.batchId || ''}</td>
+            <td title="${log.lotId || ''}">${log.lotId || ''}</td>
+            <td title="${log.batchId || ''}">${log.batchId || ''}</td>
             <td>${log.lastCleaning || ''}</td>
             <td>${log.nextCleaning || ''}</td>
             <td>${log.timestamp || ''}</td>
@@ -1839,6 +1979,11 @@ function showSettingsOnly() {
   const settings = document.getElementById('settingsScreen');
   if (login) login.style.display = 'none';
   if (settings) settings.style.display = 'block';
+
+  // Synchronize operation mode toggle button & status badge
+  if (typeof fetchOperationMode === 'function') {
+    fetchOperationMode();
+  }
 
   // Hide sidebar menu bar during Settings mode
   const navPanel = document.querySelector('.nav-panel');
@@ -2320,6 +2465,98 @@ function resetRFID() {
   }
 }
 
+// ===== Operation Mode Management (Normal vs Test Mode) =====
+window.__systemOperationMode = 'normal';
+
+function fetchOperationMode() {
+  fetch('/api/system/mode')
+    .then(r => r.json())
+    .then(data => {
+      if (data && data.status === 'success') {
+        updateOperationModeUI(data.mode);
+      }
+    })
+    .catch(err => console.warn('[MODE] fetch failed:', err));
+}
+
+function updateOperationModeUI(mode) {
+  window.__systemOperationMode = mode || 'normal';
+  const badge = document.getElementById('setting-mode-status-badge');
+  const desc = document.getElementById('setting-mode-desc-text');
+  const btn = document.getElementById('btn-toggle-operation-mode');
+
+  if (mode === 'test') {
+    if (badge) {
+      badge.textContent = 'โหมดทดสอบ (Test Mode)';
+      badge.style.background = '#fef3c7';
+      badge.style.color = '#b45309';
+      badge.style.border = '1px solid #fde68a';
+    }
+    if (desc) {
+      desc.innerHTML = 'ระบบกำลังทำงานใน <strong>Test Mode</strong>: ตรวจสอบความถูกต้องของข้อมูลจาก Store หากข้อมูลไม่ถูกต้องจะขึ้นแจ้งเตือน';
+    }
+    if (btn) {
+      btn.textContent = 'สลับเป็น Normal Mode (โหมดปกติ)';
+      btn.style.backgroundColor = '#10b981';
+    }
+  } else {
+    if (badge) {
+      badge.textContent = 'โหมดปกติ (Normal Mode)';
+      badge.style.background = '#dcfce7';
+      badge.style.color = '#15803d';
+      badge.style.border = '1px solid #bbf7d0';
+    }
+    if (desc) {
+      desc.innerHTML = 'ระบบกำลังทำงานในโหมดปกติ: อ่านและยืนยันข้อมูลจาก Smart Store ตามขั้นตอนการผลิตจริง';
+    }
+    if (btn) {
+      btn.textContent = 'สลับเป็น Test Mode (โหมดทดสอบ)';
+      btn.style.backgroundColor = '#4f46e5';
+    }
+  }
+}
+
+function toggleOperationMode() {
+  const currentMode = window.__systemOperationMode || 'normal';
+  const targetMode = currentMode === 'normal' ? 'test' : 'normal';
+  const confirmMsg = targetMode === 'test'
+    ? 'คุณต้องการสลับเป็น "Test Mode" (โหมดทดสอบ Store Verification) หรือไม่?'
+    : 'คุณต้องการสลับกลับเป็น "Normal Mode" (โหมดปกติ) หรือไม่?';
+
+  if (!confirm(confirmMsg)) return;
+
+  fetch('/api/system/mode', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mode: targetMode })
+  })
+    .then(r => r.json())
+    .then(data => {
+      if (data && data.status === 'success') {
+        updateOperationModeUI(data.mode);
+        // Refresh live data snapshot immediately
+        fetch('/api/current_data')
+          .then(r => r.json())
+          .then(res => {
+            if (res && res.status === 'success' && typeof updateHomeFromLocal === 'function') {
+              updateHomeFromLocal(res);
+            }
+          })
+          .catch(() => {});
+        // Refresh logs if on log page
+        if (typeof loadLogs === 'function') {
+          loadLogs();
+        }
+      } else {
+        alert('เกิดข้อผิดพลาดในการเปลี่ยนโหมด: ' + (data.message || 'Unknown error'));
+      }
+    })
+    .catch(err => {
+      console.error('[MODE] toggle error:', err);
+      alert('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์เพื่อสลับโหมดได้');
+    });
+}
+
 function openSettingsLog() {
   document.getElementById('settings-log-modal').style.display = 'flex';
   loadSettingsLog(1);
@@ -2741,9 +2978,13 @@ function _updateInfoBoxBadge(boxEl, type, text) {
   badge.className = `warning-badge badge-${type}`;
 
   // Choose icon
-  let icon = '⚠️';
-  if (type === 'danger' && text.includes('MISMATCH')) icon = '❌';
-  else if (type === 'success') icon = '✓';
+  const SVG_BADGE_ICON_WARN = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px; margin-right:3px;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><circle cx="12" cy="17" r="0.8" fill="currentColor"/></svg>`;
+  const SVG_BADGE_ICON_MISMATCH = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px; margin-right:3px;"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>`;
+  const SVG_BADGE_ICON_MATCH = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px; margin-right:3px;"><polyline points="20 6 9 17 4 12"/></svg>`;
+
+  let icon = SVG_BADGE_ICON_WARN;
+  if (type === 'danger' && (text.includes('MISMATCH') || text.includes('STORE ERROR'))) icon = SVG_BADGE_ICON_MISMATCH;
+  else if (type === 'success') icon = SVG_BADGE_ICON_MATCH;
 
   badge.innerHTML = `${icon} ${text}`;
   badge.title = type === 'success' ? 'Tag Pair Valid' : 'Click to view warning details';
@@ -2752,10 +2993,16 @@ function _updateInfoBoxBadge(boxEl, type, text) {
   badge.onclick = (e) => {
     e.stopPropagation();
     if (type === 'danger' || type === 'warning') {
+      const isStoreErr = text && (text.includes('STORE ERROR') || text.includes('STORE'));
       const isMis = text && text.includes('MISMATCH');
       const isNF = text && text.includes('NOT FOUND');
-      showPmWarning(window.__pmDetailText || `${text} occurred. Please check configuration.`, {
-        type: isNF ? 'not_found' : (isMis ? 'mismatch' : 'touchdown'),
+      const aType = isStoreErr ? 'store_error' : (isNF ? 'not_found' : (isMis ? 'mismatch' : 'touchdown'));
+
+      // Clear dismissed state so the modal stays open when explicitly clicked
+      window.__dismissedAlertKey = null;
+
+      showPmWarning(window.__pmDetailText || (isStoreErr ? "ข้อมูลที่อ่านได้ไม่ถูกต้อง ไม่ใช่ข้อมูลที่ออกมาจาก store" : `${text} occurred. Please check configuration.`), {
+        type: aType,
         force: true
       });
     }
@@ -2795,13 +3042,43 @@ function showPmWarning(detailText, options = {}) {
   const textEl = document.getElementById('pm-warning-text');
   const detailEl = document.getElementById('pm-warning-detail');
 
-  // Determine alert type: 'not_found' vs 'mismatch' vs 'touchdown'
-  const isNotFound = (options.type === 'not_found');
-  const isMismatch = (options.type === 'mismatch') || (!isNotFound && options.type !== 'touchdown' && detailText && (detailText.includes('MISMATCH') || detailText.includes('ไม่ตรงคู่')));
+  // Determine alert type: 'store_error' vs 'not_found' vs 'mismatch' vs 'touchdown'
+  const isStoreError = (options.type === 'store_error') || (detailText && detailText.includes('ไม่ใช่ข้อมูลที่ออกมาจาก store'));
+  const isNotFound = !isStoreError && (options.type === 'not_found');
+  const isMismatch = !isStoreError && ((options.type === 'mismatch') || (!isNotFound && options.type !== 'touchdown' && detailText && (detailText.includes('MISMATCH') || detailText.includes('ไม่ตรงคู่'))));
 
-  if (isNotFound) {
+  // Determine current alert key for dismissal tracking
+  const currentKey = options.warnKey || (isStoreError ? (window.__pairWarnKey || window.__cassetteWarnKey || 'STORE_ERROR') : (window.__pairWarnKey || window.__cassetteWarnKey || `${options.type || 'warn'}|${detailText}`));
+  window.__activeAlertKey = currentKey;
+
+  // If this alert was previously dismissed by the operator, and this invocation is not forced (via badge click), do NOT pop up!
+  if (!options.force && window.__dismissedAlertKey && window.__dismissedAlertKey === currentKey) {
+    return;
+  }
+
+  const SVG_MODAL_NOT_FOUND = `<svg viewBox="0 0 24 24" width="80" height="80" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16" y2="16"/><line x1="11" y1="8" x2="11" y2="11"/><circle cx="11" cy="14" r="0.8" fill="#f59e0b"/></svg>`;
+  const SVG_MODAL_MISMATCH = `<svg viewBox="0 0 24 24" width="80" height="80" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>`;
+  const SVG_MODAL_WARNING = `<svg viewBox="0 0 24 24" width="80" height="80" fill="none" stroke="#eab308" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><circle cx="12" cy="17" r="0.8" fill="#eab308"/></svg>`;
+
+  if (isStoreError) {
+    if (headerEl) headerEl.textContent = 'Store Verification Alert';
+    if (iconEl) iconEl.innerHTML = SVG_MODAL_MISMATCH;
+    if (titleEl) titleEl.textContent = 'ข้อมูลไม่ถูกต้อง';
+    if (textEl) {
+      textEl.innerHTML = `
+        <p style="font-size: 1.25rem; font-weight: 700; color: #ef4444; margin: 12px 0 14px; line-height: 1.5;">
+          ข้อมูลที่อ่านได้ไม่ถูกต้อง ไม่ใช่ข้อมูลที่ออกมาจาก store
+        </p>
+        <div style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px 18px; margin: 10px auto; max-width: 580px; text-align: center;">
+          <p style="font-size: 1.05rem; color: #1e293b; margin: 0; font-weight: 600; line-height: 1.5;">
+            คำแนะนำ: กรุณาตรวจสอบว่ามีการสลับเปลี่ยน Cassette หรือ FPC หรือไม่
+          </p>
+        </div>
+      `;
+    }
+  } else if (isNotFound) {
     if (headerEl) headerEl.textContent = 'Data Not Found Alert';
-    if (iconEl) iconEl.textContent = '🔍';
+    if (iconEl) iconEl.innerHTML = SVG_MODAL_NOT_FOUND;
     if (titleEl) titleEl.textContent = 'Tag Not Registered in Database';
     if (textEl) {
       if (options.tagType === 'cassette' || (detailText && detailText.includes('Cassette'))) {
@@ -2818,7 +3095,7 @@ function showPmWarning(detailText, options = {}) {
     }
   } else if (isMismatch) {
     if (headerEl) headerEl.textContent = 'Mismatch Alert';
-    if (iconEl) iconEl.textContent = '❌';
+    if (iconEl) iconEl.innerHTML = SVG_MODAL_MISMATCH;
     if (titleEl) titleEl.textContent = 'FPC & Header Mismatch';
     if (textEl) {
       textEl.innerHTML = `
@@ -2828,7 +3105,7 @@ function showPmWarning(detailText, options = {}) {
     }
   } else {
     if (headerEl) headerEl.textContent = 'Maintenance Required';
-    if (iconEl) iconEl.textContent = '⚠️';
+    if (iconEl) iconEl.innerHTML = SVG_MODAL_WARNING;
     if (titleEl) titleEl.textContent = 'Touchdown Limit Exceeded';
     if (textEl) {
       textEl.innerHTML = `
@@ -2838,14 +3115,22 @@ function showPmWarning(detailText, options = {}) {
     }
   }
 
-  if (detailEl) detailEl.textContent = detailText || '';
+  if (detailEl) {
+    if (isStoreError) {
+      detailEl.textContent = '';
+      detailEl.style.display = 'none';
+    } else {
+      detailEl.textContent = detailText || '';
+      detailEl.style.display = detailText ? 'block' : 'none';
+    }
+  }
 
   // Keep the home info box in warning state
   const box = document.getElementById('info-box');
   if (box) {
     box.classList.add('warning-active');
     box.classList.remove('tag-active');        // never green while warning
-    const badgeText = isNotFound ? 'NOT FOUND' : (isMismatch ? 'MISMATCH' : 'TOUCHDOWN EXCEEDED');
+    const badgeText = isStoreError ? 'STORE ERROR' : (isNotFound ? 'NOT FOUND' : (isMismatch ? 'MISMATCH' : 'TOUCHDOWN EXCEEDED'));
     _updateInfoBoxBadge(box, 'danger', badgeText);
   }
 
@@ -2864,6 +3149,14 @@ function showPmWarning(detailText, options = {}) {
 
 function hidePmWarning() {
   window.__pmModalOpen = false;
+  // Mark current warning key as dismissed by operator so periodic polling won't re-open it
+  if (window.__activeAlertKey) {
+    window.__dismissedAlertKey = window.__activeAlertKey;
+  } else if (window.__pairWarnKey) {
+    window.__dismissedAlertKey = window.__pairWarnKey;
+  } else if (window.__cassetteWarnKey) {
+    window.__dismissedAlertKey = window.__cassetteWarnKey;
+  }
   const modal = document.getElementById('pm-warning');
   if (modal) modal.style.display = 'none';
 
@@ -3074,8 +3367,15 @@ document.addEventListener('DOMContentLoaded', function () {
   }, false);
 
   // --- Page init ---
-  const homeBtn = document.querySelector(".nav-button[onclick*=\"switchPage('home'\"]");
-  switchPage('home', homeBtn);  // ← Add this line instead
+  const urlParams = new URLSearchParams(window.location.search);
+  const targetPage = urlParams.get('page') || (window.location.hash ? window.location.hash.replace('#', '') : null);
+  if (targetPage && document.getElementById(targetPage)) {
+    const targetBtn = document.querySelector(`.nav-button[onclick*="'${targetPage}'"]`);
+    switchPage(targetPage, targetBtn || undefined);
+  } else {
+    const homeBtn = document.querySelector(".nav-button[onclick*=\"switchPage('home'\"]");
+    switchPage('home', homeBtn);
+  }
 
   // --- Clock (every second) ---
   setInterval(updateCurrentDateTime, 1000);
@@ -3135,11 +3435,11 @@ function initClearStatusButton() {
     e.preventDefault();
     console.log('[CLEAR STATUS] Operator clicked clear button -> Resetting to gray state');
 
-    // 1. Tell backend to clear cassette state & simulation to IDLE
+    // 1. Tell backend to clear all WT-Lot Info & cassette state
     try {
-      await fetch('/api/cassette/clear', { method: 'POST' });
+      await fetch('/api/prober/clear', { method: 'POST' });
     } catch (err) {
-      try { await fetch('/api/simulate_cassette?clear=true'); } catch (e) { }
+      try { await fetch('/api/cassette/clear', { method: 'POST' }); } catch (e) { }
     }
 
     // 2. Reset frontend cassette & pair flags
@@ -3160,6 +3460,8 @@ function initClearStatusButton() {
     setMany(['PM-display'], '');
     setMany(['timer-display'], '');
     setMany(['comment-display'], '');
+    const pre = document.getElementById('td-prewarn');
+    if (pre) { pre.style.display = 'none'; pre.textContent = ''; pre.classList.remove('hot'); }
     if (typeof clearCassetteDisplayFields === 'function') {
       clearCassetteDisplayFields();
     }
@@ -3172,10 +3474,13 @@ function initClearStatusButton() {
       _updateInfoBoxBadge(box, 'none');
     }
 
-    // 5. Hide the clear button itself
+    // 5. Hide the clear button unless still disconnected
     const clearFooter = document.getElementById('info-box-footer');
     if (clearFooter) {
-      clearFooter.style.display = 'none';
+      const isDisc = box && box.classList.contains('disconnected');
+      if (!isDisc) {
+        clearFooter.style.display = 'none';
+      }
     }
 
     // 6. Close PM warning modal if open
@@ -3355,10 +3660,9 @@ function parsePmiFilename(rawFilename) {
 (function initPmiWebSocketClient() {
   const wsHost = (typeof window !== 'undefined' && window.location && window.location.hostname) ? window.location.hostname : '127.0.0.1';
   const wsProto = (typeof window !== 'undefined' && window.location && window.location.protocol === 'https:') ? 'wss:' : 'ws:';
-  const wsPort = (typeof window !== 'undefined' && window.location && window.location.port) ? window.location.port : '8002';
-  const IMX8_WS_URL = `${wsProto}//${wsHost}:${wsPort}/ws`;
-  const IMX8_HTTP_BASE = `${(typeof window !== 'undefined' && window.location && window.location.protocol) ? window.location.protocol : 'http:'}//${wsHost}:${wsPort}`;
-  const LOCAL_HTTP_BASE = (typeof window !== 'undefined' && window.location && window.location.origin) ? window.location.origin : `http://${wsHost}:${wsPort}`;
+  const IMX8_WS_URL = `${wsProto}//${wsHost}:8001/ws`;
+  const IMX8_HTTP_BASE = `${(typeof window !== 'undefined' && window.location && window.location.protocol) ? window.location.protocol : 'http:'}//${wsHost}:8001`;
+  const LOCAL_HTTP_BASE = (typeof window !== 'undefined' && window.location && window.location.origin) ? window.location.origin : `http://${wsHost}:8002`;
 
   let activeApiBase = IMX8_HTTP_BASE;
   let ws = null;
@@ -3368,6 +3672,10 @@ function parsePmiFilename(rawFilename) {
   let currentFailIndex = -1;
   let lastInspectionKey = '';
   let isNavigatingFailures = false;
+  let isBatchActive = false; // tracks live inspection activity
+  let currentBatchId = '';   // tracks active batch/wafer ID to isolate single PMI runs
+  let isAwaitingNewBatch = false; // tracks operator manual reset to WAITING state
+  let currentRenderToken = 0;
 
   // Cache UI elements
   const statusBar = document.getElementById('pmi-status-bar');
@@ -3381,6 +3689,7 @@ function parsePmiFilename(rawFilename) {
   const failCounter = document.getElementById('pmi-fail-counter');
   const prevBtn = document.getElementById('pmi-prev-btn');
   const nextBtn = document.getElementById('pmi-next-btn');
+  const resetBtn = document.getElementById('pmi-reset-btn');
 
   const elDateTime = document.getElementById('pmi-field-datetime');
   const elXY = document.getElementById('pmi-field-xy');
@@ -3410,6 +3719,57 @@ function parsePmiFilename(rawFilename) {
       if (processedConstruct) processedConstruct.style.display = 'none';
     };
   }
+
+  function clearPmiDisplayToWaiting() {
+    isBatchActive = false;
+    isNavigatingFailures = false;
+    failedInspections = [];
+    currentFailIndex = -1;
+    isAwaitingNewBatch = true;
+    currentRenderToken++;
+
+    if (prevBtn) prevBtn.disabled = true;
+    if (nextBtn) nextBtn.disabled = true;
+    if (resetBtn) resetBtn.disabled = true;
+
+    if (statusBar) {
+      statusBar.classList.remove('passed', 'failed');
+      statusBar.classList.add('waiting');
+      statusBar.textContent = 'WAITING';
+    }
+
+    if (framesContainer) {
+      framesContainer.classList.remove('passed', 'failed');
+    }
+
+    if (rawImg && rawImg.style.display !== 'none') {
+      rawImg.style.display = 'none';
+      rawImg.removeAttribute('src');
+    }
+    if (rawConstruct && rawConstruct.style.display !== 'flex') {
+      rawConstruct.style.display = 'flex';
+    }
+
+    if (processedImg && processedImg.style.display !== 'none') {
+      processedImg.style.display = 'none';
+      processedImg.removeAttribute('src');
+    }
+    if (processedConstruct && processedConstruct.style.display !== 'flex') {
+      processedConstruct.style.display = 'flex';
+    }
+
+    if (filenameDisplay && filenameDisplay.textContent !== '') filenameDisplay.textContent = '';
+    if (elDateTime && elDateTime.textContent !== '-') elDateTime.textContent = '-';
+    if (elXY && elXY.textContent !== '-') elXY.textContent = '-';
+    if (elBatchWafer && elBatchWafer.textContent !== '-') elBatchWafer.textContent = '-';
+    if (elSitePad && elSitePad.textContent !== '-') elSitePad.textContent = '-';
+    if (elSetup && elSetup.textContent !== '-') elSetup.textContent = '-';
+    if (elTemp && elTemp.textContent !== '-') elTemp.textContent = '-';
+    if (typeof fitPmiCardText === 'function') fitPmiCardText();
+  }
+
+  // Ensure default UI starts strictly in WAITING state
+  clearPmiDisplayToWaiting();
 
   function getFilenameFromData(data) {
     if (!data) return '';
@@ -3464,6 +3824,10 @@ function parsePmiFilename(rawFilename) {
     if (elTemp && temp !== undefined && temp !== null && temp !== '-') {
       elTemp.textContent = String(temp).includes('°C') ? temp : `${temp}`;
     }
+
+    if (typeof fitPmiCardText === 'function') {
+      fitPmiCardText();
+    }
   }
 
   function resolveImageUrl(url) {
@@ -3472,11 +3836,18 @@ function parsePmiFilename(rawFilename) {
       return url;
     }
     const cleanPath = url.startsWith('/') ? url : `/${url}`;
+    if (cleanPath === '/pmi_inspection.png' || cleanPath.endsWith('/pmi_inspection.png')) {
+      return `${LOCAL_HTTP_BASE}/pmi_inspection.png`;
+    }
+    if (cleanPath.startsWith('/api/pmi/image/')) {
+      return `${LOCAL_HTTP_BASE}${cleanPath}`;
+    }
+    if (cleanPath.startsWith('/api/images/')) {
+      return `${IMX8_HTTP_BASE}${cleanPath}`;
+    }
     const base = activeApiBase || IMX8_HTTP_BASE;
     return `${base}${cleanPath}`;
   }
-
-  let currentRenderToken = 0;
 
   function renderInspection(data, isLive = true) {
     if (!data) return;
@@ -3512,10 +3883,12 @@ function parsePmiFilename(rawFilename) {
           statusBar.classList.remove('waiting', 'passed', 'failed');
           if (isPass) {
             statusBar.classList.add('passed');
-            statusBar.textContent = isLive ? 'PASS' : `FAIL (${currentFailIndex + 1}/${failedInspections.length})`;
+            statusBar.textContent = 'PASS';
           } else if (isFail) {
             statusBar.classList.add('failed');
-            statusBar.textContent = isLive ? 'FAIL' : `FAIL (${currentFailIndex + 1}/${failedInspections.length})`;
+            statusBar.textContent = (isLive || failedInspections.length === 0)
+              ? 'FAIL'
+              : `FAIL (${currentFailIndex + 1}/${failedInspections.length})`;
           } else {
             statusBar.classList.add('waiting');
             statusBar.textContent = decision || 'INSPECTING';
@@ -3530,6 +3903,11 @@ function parsePmiFilename(rawFilename) {
 
         // 3. Commit Metadata in the exact same frame
         updateMetadata(data);
+
+        // 4. Allow operator to acknowledge/reset inspection (only when batch inspection is not active)
+        if (resetBtn) {
+          resetBtn.disabled = isBatchActive;
+        }
       });
     }
 
@@ -3571,9 +3949,14 @@ function parsePmiFilename(rawFilename) {
     if (failCounter) failCounter.textContent = `FAIL ${currentFailIndex + 1}/${failedInspections.length}`;
     if (prevBtn) prevBtn.disabled = (currentFailIndex === 0);
     if (nextBtn) nextBtn.disabled = (currentFailIndex === failedInspections.length - 1);
+    if (resetBtn) resetBtn.disabled = false;
   }
 
-  function handleBatchComplete() {
+  function handleBatchComplete(summary) {
+    isBatchActive = false;
+    if (summary && summary.txtFile) {
+      console.log(`[PMI] Batch finished via Judge File: ${summary.txtFile}`);
+    }
     if (failedInspections.length > 0) {
       if (failNav) failNav.style.display = 'flex';
       if (currentFailIndex < 0 || currentFailIndex >= failedInspections.length) {
@@ -3583,7 +3966,10 @@ function parsePmiFilename(rawFilename) {
       }
     } else {
       isNavigatingFailures = false;
-      if (failNav) failNav.style.display = 'none';
+      if (failNav) failNav.style.display = 'flex';
+      if (prevBtn) prevBtn.disabled = true;
+      if (nextBtn) nextBtn.disabled = true;
+      if (resetBtn) resetBtn.disabled = false;
       if (statusBar) {
         statusBar.classList.remove('waiting', 'failed');
         statusBar.classList.add('passed');
@@ -3602,23 +3988,35 @@ function parsePmiFilename(rawFilename) {
       let inspRes = null;
       let batchRes = null;
 
-      // 1. Try Primary Port 8002 (Dedicated Vision/AI Backend)
+      // 1. Try Primary Port 8001 (Dedicated Vision/AI Backend) with timeout
       try {
+        const ctrl = new AbortController();
+        const tid = setTimeout(() => ctrl.abort(), 1200);
         const primaryCalls = await Promise.all([
-          fetch(`${IMX8_HTTP_BASE}/api/latest-inspection`, { cache: 'no-store' }).catch(() => fetch(`${IMX8_HTTP_BASE}/api/v1/latest-inspection`, { cache: 'no-store' })),
-          fetch(`${IMX8_HTTP_BASE}/api/batch-summary`, { cache: 'no-store' }).catch(() => fetch(`${IMX8_HTTP_BASE}/api/v1/batch-summary`, { cache: 'no-store' }))
+          fetch(`${IMX8_HTTP_BASE}/api/latest-inspection`, { cache: 'no-store', signal: ctrl.signal })
+            .catch(() => fetch(`${IMX8_HTTP_BASE}/api/v1/latest-inspection`, { cache: 'no-store', signal: ctrl.signal }).catch(() => null)),
+          fetch(`${IMX8_HTTP_BASE}/api/batch-summary`, { cache: 'no-store', signal: ctrl.signal })
+            .catch(() => fetch(`${IMX8_HTTP_BASE}/api/v1/batch-summary`, { cache: 'no-store', signal: ctrl.signal }).catch(() => null))
         ]);
+        clearTimeout(tid);
         if (primaryCalls[0] && primaryCalls[0].ok) {
           inspRes = primaryCalls[0];
           batchRes = primaryCalls[1];
           activeApiBase = IMX8_HTTP_BASE;
+        } else {
+          // Fallback to local server (port 8002)
+          const fallbackCalls = await Promise.all([
+            fetch(`${LOCAL_HTTP_BASE}/api/latest-inspection`, { cache: 'no-store' }).catch(() => null),
+            fetch(`${LOCAL_HTTP_BASE}/api/batch-summary`, { cache: 'no-store' }).catch(() => null)
+          ]);
+          if (fallbackCalls[0] && fallbackCalls[0].ok) {
+            inspRes = fallbackCalls[0];
+            batchRes = fallbackCalls[1];
+            activeApiBase = LOCAL_HTTP_BASE;
+          }
         }
       } catch (e) {
-        // Port 8002 not responding, fallback to local host
-      }
-
-      // 2. Fallback to Local Flask Service (Port 8002 / UIIU Simulation)
-      if (!inspRes || !inspRes.ok) {
+        // Fallback to local server (port 8002)
         try {
           const fallbackCalls = await Promise.all([
             fetch(`${LOCAL_HTTP_BASE}/api/latest-inspection`, { cache: 'no-store' }).catch(() => null),
@@ -3629,44 +4027,104 @@ function parsePmiFilename(rawFilename) {
             batchRes = fallbackCalls[1];
             activeApiBase = LOCAL_HTTP_BASE;
           }
-        } catch (e) {
-          // Local fallback not available
+        } catch (e2) {
+          // Both backends unreachable
         }
       }
 
+      let batchData = null;
       if (batchRes && batchRes.ok) {
-        const batchData = await batchRes.json();
-        if (batchData) {
-          if (Array.isArray(batchData.failedRecords) && batchData.failedRecords.length > 0) {
-            failedInspections = batchData.failedRecords;
-          }
-          if (failedInspections.length > 0) {
-            if (failNav) failNav.style.display = 'flex';
-            if (currentFailIndex < 0) currentFailIndex = 0;
-            if (failCounter) failCounter.textContent = `FAIL ${currentFailIndex + 1}/${failedInspections.length}`;
-            if (prevBtn) prevBtn.disabled = (currentFailIndex === 0);
-            if (nextBtn) nextBtn.disabled = (currentFailIndex === failedInspections.length - 1);
-
-            if (batchData.isBatchComplete) {
-              handleBatchComplete();
-              return;
-            }
-          } else {
-            if (!isNavigatingFailures && failNav) {
-              failNav.style.display = 'none';
-            }
-          }
-        }
+        try {
+          batchData = await batchRes.json();
+        } catch (e) { }
       }
 
+      function isValidWaferId(w) {
+        return Boolean(w && w !== '-' && w !== '—' && w !== 'None' && w !== 'null' && w !== 'undefined');
+      }
+
+      let inspData = null;
+      let newKey = '';
       if (inspRes && inspRes.ok) {
-        const inspData = await inspRes.json();
-        if (inspData && !isNavigatingFailures && (inspData.rawImageUrl || inspData.imageUrl)) {
-          const key = (inspData.db_id || '') + '_' + (inspData.rawImageUrl || inspData.imageUrl || inspData.image_name || inspData.timestamp || '');
-          if (key !== lastInspectionKey) {
-            lastInspectionKey = key;
-            renderInspection(inspData, true);
+        try {
+          inspData = await inspRes.json();
+          if (inspData && (inspData.rawImageUrl || inspData.imageUrl)) {
+            newKey = (inspData.db_id || '') + '_' + (inspData.rawImageUrl || inspData.imageUrl || inspData.image_name || inspData.timestamp || '');
           }
+        } catch (e) { }
+      }
+
+      // Detect wafer/batch changes from batchData or inspData
+      const rawWafer = (batchData && (batchData.currentWafer || batchData.waferNo || batchData.batch))
+        || (inspData && (inspData.batch || inspData.waferNo)) || '';
+      const wafer = isValidWaferId(rawWafer) ? rawWafer : '';
+      const isNewWafer = Boolean(wafer && isValidWaferId(currentBatchId) && currentBatchId !== wafer);
+
+      if (isNewWafer) {
+        failedInspections = [];
+        currentFailIndex = -1;
+        isNavigatingFailures = false;
+        if (prevBtn) prevBtn.disabled = true;
+        if (nextBtn) nextBtn.disabled = true;
+        if (resetBtn) resetBtn.disabled = true;
+        currentBatchId = wafer;
+        isAwaitingNewBatch = false;
+      } else if (wafer) {
+        currentBatchId = wafer;
+      }
+
+      // If operator manually reset to WAITING:
+      if (isAwaitingNewBatch) {
+        const isNewInspection = Boolean(newKey && newKey !== lastInspectionKey);
+        if (!isNewWafer && !isNewInspection) {
+          // Still on the acknowledged batch/inspection: remain strictly in WAITING state!
+          return;
+        }
+        // A genuine new wafer or new inspection has arrived!
+        isAwaitingNewBatch = false;
+      }
+
+      // Update failure records from batchData
+      if (batchData && Array.isArray(batchData.failedRecords) && !isNavigatingFailures) {
+        failedInspections = batchData.failedRecords;
+      }
+
+      // Judge file emitted by backend = official completion of PMI run
+      const hasJudge = Boolean(batchData && (batchData.isBatchComplete || batchData.txtFile));
+
+      if (hasJudge) {
+        handleBatchComplete(batchData);
+      } else if (failedInspections.length > 0 && !isBatchActive) {
+        showFailAtIndex(currentFailIndex >= 0 ? currentFailIndex : 0);
+      } else if (isBatchActive && !isNavigatingFailures) {
+        if (prevBtn) prevBtn.disabled = true;
+        if (nextBtn) nextBtn.disabled = true;
+        if (resetBtn) resetBtn.disabled = true;
+      }
+
+      const isWaiting = !inspData ||
+        inspData.status === 'waiting' ||
+        inspData.decision === 'WAITING' ||
+        (!inspData.rawImageUrl && !inspData.imageUrl);
+
+      if (!isWaiting && inspData && (inspData.rawImageUrl || inspData.imageUrl)) {
+        if (newKey !== lastInspectionKey) {
+          const isInitialPoll = (lastInspectionKey === '');
+          lastInspectionKey = newKey;
+          if (!isInitialPoll && !hasJudge) {
+            isBatchActive = true;
+          }
+          if (!isNavigatingFailures) {
+            renderInspection(inspData, isBatchActive);
+          }
+        } else if (!isNavigatingFailures && (!rawImg || rawImg.style.display === 'none')) {
+          // Re-render if image element is unrendered (e.g. initial load)
+          renderInspection(inspData, false);
+        }
+      } else {
+        lastInspectionKey = '';
+        if (!isBatchActive && !isNavigatingFailures) {
+          clearPmiDisplayToWaiting();
         }
       }
     } catch (err) {
@@ -3680,28 +4138,52 @@ function parsePmiFilename(rawFilename) {
     pollTimer = setInterval(fetchPmiState, 1000);
   }
 
-  function connect() {
-    startPolling();
+  function stopPolling() {
+    if (pollTimer) {
+      clearInterval(pollTimer);
+      pollTimer = null;
+    }
+  }
 
-    if (ws && (ws.readyState === WebSocket.CONNECTING || ws.readyState === WebSocket.OPEN)) return;
+  function connect() {
+    if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
+      return;
+    }
 
     try {
       ws = new WebSocket(IMX8_WS_URL);
-    } catch (e) {
+    } catch (err) {
       scheduleReconnect();
+      startPolling();
       return;
     }
 
     ws.onopen = () => {
-      console.log('[PMI i.MX8] Connected to WebSocket:', IMX8_WS_URL);
-      fetchPmiState();
+      console.log(`[PMI i.MX8] Connected to WebSocket: ${IMX8_WS_URL}`);
+      activeApiBase = IMX8_HTTP_BASE;
+      startPolling();
     };
 
     ws.onmessage = (event) => {
       try {
         const payload = JSON.parse(event.data);
         if (payload.event === 'NEW_INSPECTION' && payload.data) {
+          isAwaitingNewBatch = false;
+          isBatchActive = true;
           const item = payload.data;
+
+          // Isolate fails per wafer/batch - reset list on wafer change
+          const itemWafer = item.waferNo || item.wafer || item.batch || '';
+          if (itemWafer && currentBatchId && currentBatchId !== itemWafer) {
+            failedInspections = [];
+            currentFailIndex = -1;
+            isNavigatingFailures = false;
+            if (prevBtn) prevBtn.disabled = true;
+            if (nextBtn) nextBtn.disabled = true;
+            if (resetBtn) resetBtn.disabled = true;
+          }
+          if (itemWafer) currentBatchId = itemWafer;
+
           const dec = (item.decision || item.ai_decision || (item.is_pass === false ? 'FAIL' : (item.is_pass ? 'PASS' : '')) || '').toUpperCase();
           if (dec === 'FAIL' || dec === 'FAILED') {
             const itemFname = getFilenameFromData(item);
@@ -3709,32 +4191,25 @@ function parsePmiFilename(rawFilename) {
             if (!exists) {
               failedInspections.push(item);
             }
-            if (failNav) failNav.style.display = 'flex';
+            if (resetBtn) resetBtn.disabled = isBatchActive;
           }
 
-          const fname = getFilenameFromData(item).toUpperCase();
-          const isEnd = fname.includes('_END') || fname.includes('.END') || item.is_end || item.is_end_signal || item.is_batch_end;
-
-          if (isEnd) {
-            handleBatchComplete();
-          } else if (!isNavigatingFailures) {
+          if (!isNavigatingFailures) {
             renderInspection(item, true);
           }
-        } else if (payload.event === 'BATCH_COMPLETE' || payload.event === 'BATCH_FINISHED') {
-          if (payload.data && Array.isArray(payload.data.failedRecords) && payload.data.failedRecords.length > 0) {
-            failedInspections = payload.data.failedRecords;
+        } else if (payload.event === 'BATCH_COMPLETE' || payload.event === 'BATCH_FINISHED' || payload.event === 'JUDGE_COMPLETE') {
+          if (isAwaitingNewBatch) return; // Operator acknowledged & reset to WAITING
+          if (payload.data) {
+            if (Array.isArray(payload.data.failedRecords)) {
+              failedInspections = payload.data.failedRecords;
+            }
+            if (payload.data.batch || payload.data.waferNo) {
+              currentBatchId = payload.data.batch || payload.data.waferNo;
+            }
           }
-          handleBatchComplete();
-        } else if (payload.event === 'BATCH_START' || payload.event === 'NEW_BATCH') {
-          failedInspections = [];
-          currentFailIndex = -1;
-          isNavigatingFailures = false;
-          if (failNav) failNav.style.display = 'none';
-          if (statusBar) {
-            statusBar.classList.remove('passed', 'failed');
-            statusBar.classList.add('waiting');
-            statusBar.textContent = 'INSPECTING';
-          }
+          handleBatchComplete(payload.data);
+        } else if (payload.event === 'BATCH_START' || payload.event === 'NEW_BATCH' || payload.event === 'RESET_BATCH') {
+          clearPmiDisplayToWaiting();
         }
       } catch (err) {
         console.error('[PMI i.MX8] Error processing WebSocket message:', err);
@@ -3786,7 +4261,8 @@ function parsePmiFilename(rawFilename) {
   if (statusBar) {
     statusBar.style.cursor = 'pointer';
     statusBar.addEventListener('click', () => {
-      if (failedInspections.length > 0) {
+      // Only allow fail review if batch is finished with failures
+      if (failedInspections.length > 0 && !isBatchActive) {
         if (currentFailIndex < 0 || currentFailIndex >= failedInspections.length) {
           showFailAtIndex(0);
         } else {
@@ -3798,7 +4274,8 @@ function parsePmiFilename(rawFilename) {
 
   // Keyboard navigation for Fail review (ArrowLeft / ArrowRight)
   document.addEventListener('keydown', (e) => {
-    if (failedInspections.length === 0) return;
+    // Block navigation if no failures or live inspection is active
+    if (failedInspections.length === 0 || isBatchActive) return;
     if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target?.tagName)) return;
 
     if (e.key === 'ArrowLeft') {
@@ -3816,6 +4293,26 @@ function parsePmiFilename(rawFilename) {
       }
     }
   });
+
+  // Reset to WAITING button listener (For Operator acknowledge after inspecting failures)
+  if (resetBtn) {
+    resetBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (isBatchActive) {
+        console.warn('[PMI] Cannot reset while batch inspection is active');
+        return;
+      }
+      clearPmiDisplayToWaiting();
+
+      // Call backend reset API
+      const base = activeApiBase || IMX8_HTTP_BASE;
+      fetch(`${base}/api/batch/reset`, { method: 'POST', cache: 'no-store' }).catch(() => { });
+      if (base !== LOCAL_HTTP_BASE) {
+        fetch(`${LOCAL_HTTP_BASE}/api/batch/reset`, { method: 'POST', cache: 'no-store' }).catch(() => { });
+      }
+      console.log('[PMI] Operator acknowledged defect/batch and reset state to WAITING.');
+    });
+  }
 
   // Start WebSocket and polling when DOM is ready
   if (document.readyState === 'loading') {

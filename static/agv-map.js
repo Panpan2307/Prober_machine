@@ -1,4 +1,11 @@
 (() => {
+  // ======== DOM refs ========
+  const stage = document.getElementById('stage');
+  const canvas = document.getElementById('map');
+  if (!stage || !canvas) {
+    return;
+  }
+
   // ======== Config from template (with fallbacks) ========
   const ppm       = typeof window.PPM === 'number' ? window.PPM : 20; // px/m
   const originM   = window.ORIGIN_M || { x: 0, y: 0 };
@@ -47,9 +54,6 @@ const ROBOT_UI = {
     }
   ];
 
-  // ======== DOM refs ========
-  const stage = document.getElementById('stage');
-  const canvas = document.getElementById('map');
   const ctx    = canvas.getContext('2d');
   const legend = document.getElementById('legend');
   const scaleLabel = document.getElementById('scale');
